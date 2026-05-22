@@ -12,6 +12,11 @@
   let currentKeyValues = [];
   let pendingEdit = null;
 
+  let currentSortColumn = null;
+  let currentSortDirection = null;
+  let currentFilters = {};
+  let filterDebounceTimer = null;
+
   const tablesEl = document.getElementById("tables");
   const titleEl = document.getElementById("table-title");
   const badgeEl = document.getElementById("data-badge");
@@ -53,6 +58,9 @@
   function openTable(name) {
     currentTable = name;
     currentOffset = 0;
+    currentSortColumn = null;
+    currentSortDirection = null;
+    currentFilters = {};
     document.querySelectorAll("#tables li").forEach((el) => {
       el.classList.toggle("active", el.textContent === name);
     });
@@ -62,10 +70,16 @@
 
   function requestData() {
     if (!currentTable) return;
+    const filters = Object.entries(currentFilters)
+      .filter(([, v]) => v !== "")
+      .map(([column, value]) => ({ column, value }));
     send("getTableData", {
       table: currentTable,
       limit: PAGE_SIZE,
       offset: currentOffset,
+      sortColumn: currentSortColumn ?? undefined,
+      sortDirection: currentSortDirection ?? undefined,
+      filters,
     });
   }
 
@@ -73,6 +87,11 @@
 
   function renderData(payload) {
     if (payload.table !== currentTable) return;
+
+    const sameSchema =
+      currentColumns.length === payload.columns.length &&
+      currentColumns.every((c, i) => c === payload.columns[i]);
+
     currentTotal = payload.total;
     currentColumns = payload.columns;
     currentMetadata = payload.metadata;
@@ -89,11 +108,10 @@
       badgeEl.textContent = "no primary key · read-only";
       badgeEl.className = "badge readonly";
     }
-    dataExportEl.hidden = payload.total === 0;
-
-    dataEl.innerHTML = "";
+    dataExportEl.hidden = payload.total === 0 && !hasActiveFilters();
 
     if (payload.columns.length === 0) {
+      dataEl.innerHTML = "";
       const tr = document.createElement("tr");
       const td = document.createElement("td");
       td.className = "empty";
@@ -104,9 +122,32 @@
       return;
     }
 
-    appendTableHead(dataEl, payload.columns);
-    appendEditableBody(dataEl, payload.rows, payload.columns, payload.metadata);
+    if (sameSchema && dataEl.querySelector("thead")) {
+      const oldTbody = dataEl.querySelector("tbody");
+      if (oldTbody) oldTbody.remove();
+      appendEditableBody(
+        dataEl,
+        payload.rows,
+        payload.columns,
+        payload.metadata,
+      );
+      updateSortIndicators();
+    } else {
+      dataEl.innerHTML = "";
+      appendSortableHead(dataEl, payload.columns);
+      appendFilterRow(dataEl, payload.columns);
+      appendEditableBody(
+        dataEl,
+        payload.rows,
+        payload.columns,
+        payload.metadata,
+      );
+    }
     renderPager();
+  }
+
+  function hasActiveFilters() {
+    return Object.values(currentFilters).some((v) => v !== "");
   }
 
   function renderPager() {
@@ -152,6 +193,107 @@
     });
     thead.appendChild(tr);
     table.appendChild(thead);
+  }
+
+  function appendSortableHead(table, columns) {
+    const thead = document.createElement("thead");
+    const tr = document.createElement("tr");
+    columns.forEach((col, idx) => {
+      const th = document.createElement("th");
+      th.className = "sortable";
+      th.dataset.col = String(idx);
+      th.dataset.colname = col;
+
+      const label = document.createElement("span");
+      label.textContent = col;
+      th.appendChild(label);
+
+      const indicator = document.createElement("span");
+      indicator.className = "sort-indicator";
+      indicator.textContent = "";
+      th.appendChild(indicator);
+
+      th.addEventListener("click", () => cycleSort(col));
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+    table.appendChild(thead);
+    updateSortIndicators();
+  }
+
+  function appendFilterRow(table, columns) {
+    const tr = document.createElement("tr");
+    tr.className = "filter-row";
+    columns.forEach((col) => {
+      const td = document.createElement("td");
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "filter";
+      input.className = "filter-input";
+      input.value = currentFilters[col] ?? "";
+      input.spellcheck = false;
+      input.autocomplete = "off";
+      input.addEventListener("input", () => onFilterInput(col, input.value));
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          input.value = "";
+          onFilterInput(col, "");
+        } else if (e.key === "Enter") {
+          flushFilterDebounce();
+        }
+      });
+      td.appendChild(input);
+      tr.appendChild(td);
+    });
+    const existingThead = table.querySelector("thead");
+    if (existingThead) existingThead.appendChild(tr);
+  }
+
+  function onFilterInput(column, value) {
+    currentFilters[column] = value;
+    if (filterDebounceTimer) clearTimeout(filterDebounceTimer);
+    filterDebounceTimer = setTimeout(() => {
+      filterDebounceTimer = null;
+      currentOffset = 0;
+      requestData();
+    }, 250);
+  }
+
+  function flushFilterDebounce() {
+    if (filterDebounceTimer) {
+      clearTimeout(filterDebounceTimer);
+      filterDebounceTimer = null;
+      currentOffset = 0;
+      requestData();
+    }
+  }
+
+  function cycleSort(column) {
+    if (currentSortColumn !== column) {
+      currentSortColumn = column;
+      currentSortDirection = "asc";
+    } else if (currentSortDirection === "asc") {
+      currentSortDirection = "desc";
+    } else {
+      currentSortColumn = null;
+      currentSortDirection = null;
+    }
+    currentOffset = 0;
+    requestData();
+  }
+
+  function updateSortIndicators() {
+    document.querySelectorAll("th.sortable").forEach((th) => {
+      const indicator = th.querySelector(".sort-indicator");
+      if (!indicator) return;
+      if (th.dataset.colname === currentSortColumn) {
+        indicator.textContent = currentSortDirection === "asc" ? " ▲" : " ▼";
+        th.classList.add("sorted");
+      } else {
+        indicator.textContent = "";
+        th.classList.remove("sorted");
+      }
+    });
   }
 
   function appendTableBody(table, rows) {

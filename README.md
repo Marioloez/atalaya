@@ -14,13 +14,13 @@ Built because supply-chain risks in third-party VSCode extensions are real. This
 - Native undo/redo for executed queries and inline edits
 - Revert support reloads from disk
 - Read-only fallback for views, tables without primary key, and BLOB columns
+- Click column headers to sort; per-column filter row with `LIKE '%...%'`
 - Export tables and query results to CSV or JSON (BLOBs as base64)
 - Webview locked down with strict CSP and per-load nonce
 
 ## Roadmap
 
 - [ ] Schema viewer (columns, types, indexes, foreign keys)
-- [ ] Filter and sort by column
 - [ ] Add / delete rows from the Data tab
 
 ## Development

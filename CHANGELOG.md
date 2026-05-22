@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-05-21
+
+### Added
+
+- Click any column header in the Data tab to sort ascending (▲), click
+  again for descending (▼), and a third time to clear the sort
+- Filter row beneath the headers — one input per column, `LIKE '%text%'`
+  applied as you type with a 250 ms debounce; `Esc` clears one filter,
+  `Enter` flushes the debounce immediately
+- Filtered total row count reflects the active filters
+- Schema-stable refresh: when only data changes, only the table body is
+  re-rendered, so filter inputs keep focus and content
+
+### Changed
+
+- `getTableData` accepts optional `sortColumn`, `sortDirection`, and
+  `filters[]`; all filter values are bound via prepared statements
+
 ## [0.0.4] - 2026-05-21
 
 ### Added

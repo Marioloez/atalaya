@@ -1,5 +1,9 @@
 import * as vscode from "vscode";
-import { QueryResult, SqliteService } from "../sqlite/service";
+import {
+  ColumnFilter,
+  QueryResult,
+  SqliteService,
+} from "../sqlite/service";
 import { ExportFormat, toCsv, toJson } from "../export/format";
 
 class SqlitexDocument implements vscode.CustomDocument {
@@ -28,6 +32,9 @@ interface GetTableDataPayload {
   table: string;
   limit: number;
   offset: number;
+  sortColumn?: string;
+  sortDirection?: "asc" | "desc";
+  filters?: ColumnFilter[];
 }
 
 interface RunQueryPayload {
@@ -134,8 +141,13 @@ export class SqliteEditorProvider
         return;
       }
       case "getTableData": {
-        const { table, limit, offset } = msg.payload as GetTableDataPayload;
-        const data = document.service.getTableData(table, limit, offset);
+        const { table, limit, offset, sortColumn, sortDirection, filters } =
+          msg.payload as GetTableDataPayload;
+        const data = document.service.getTableData(table, limit, offset, {
+          sortColumn,
+          sortDirection,
+          filters,
+        });
         panel.webview.postMessage({
           type: "tableData",
           payload: { table, ...data },

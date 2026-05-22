@@ -40,6 +40,17 @@ export interface UpdateCellResult {
   mutated: boolean;
 }
 
+export interface ColumnFilter {
+  column: string;
+  value: string;
+}
+
+export interface TableDataOptions {
+  sortColumn?: string;
+  sortDirection?: "asc" | "desc";
+  filters?: ColumnFilter[];
+}
+
 const NON_READ_TOKEN =
   /\b(insert|update|delete|replace|create|drop|alter|truncate|reindex|vacuum|attach|detach)\b/i;
 
@@ -136,12 +147,34 @@ export class SqliteService {
     table: string,
     limit: number,
     offset: number,
+    options: TableDataOptions = {},
   ): TableDataResult {
     const metadata = this.getTableMetadata(table);
     const quoted = quoteIdent(table);
 
-    const countRes = this.db.exec(`SELECT COUNT(*) FROM ${quoted}`);
-    const total = Number(countRes[0]?.values[0]?.[0] ?? 0);
+    const validColumnNames = new Set(metadata.columns.map((c) => c.name));
+    const filters = (options.filters ?? []).filter(
+      (f) => validColumnNames.has(f.column) && f.value !== "",
+    );
+    const sortColumn =
+      options.sortColumn && validColumnNames.has(options.sortColumn)
+        ? options.sortColumn
+        : undefined;
+    const sortDirection = options.sortDirection === "desc" ? "DESC" : "ASC";
+
+    const whereParts: string[] = [];
+    const whereBindings: unknown[] = [];
+    for (const f of filters) {
+      whereParts.push(`${quoteIdent(f.column)} LIKE ?`);
+      whereBindings.push(`%${f.value}%`);
+    }
+    const whereClause =
+      whereParts.length > 0 ? ` WHERE ${whereParts.join(" AND ")}` : "";
+    const orderClause = sortColumn
+      ? ` ORDER BY ${quoteIdent(sortColumn)} ${sortDirection}`
+      : "";
+
+    const total = this.countWithFilters(quoted, whereClause, whereBindings);
 
     const safeLimit = Math.max(0, Math.min(1000, Math.floor(limit)));
     const safeOffset = Math.max(0, Math.floor(offset));
@@ -150,9 +183,9 @@ export class SqliteService {
       metadata.keyColumns.length > 0
         ? metadata.keyColumns.map(quoteIdent).join(", ") + ", "
         : "";
-    const dataRes = this.db.exec(
-      `SELECT ${keySelect}* FROM ${quoted} LIMIT ${safeLimit} OFFSET ${safeOffset}`,
-    );
+
+    const sql = `SELECT ${keySelect}* FROM ${quoted}${whereClause}${orderClause} LIMIT ${safeLimit} OFFSET ${safeOffset}`;
+    const dataRes = this.runPrepared(sql, whereBindings);
 
     if (dataRes.length === 0) {
       return {
@@ -256,6 +289,41 @@ export class SqliteService {
 
   close(): void {
     this.db.close();
+  }
+
+  private countWithFilters(
+    quotedTable: string,
+    whereClause: string,
+    bindings: unknown[],
+  ): number {
+    const sql = `SELECT COUNT(*) FROM ${quotedTable}${whereClause}`;
+    const res = this.runPrepared(sql, bindings);
+    return Number(res[0]?.values[0]?.[0] ?? 0);
+  }
+
+  private runPrepared(
+    sql: string,
+    bindings: unknown[],
+  ): Array<{ columns: string[]; values: unknown[][] }> {
+    if (bindings.length === 0) {
+      return this.db.exec(sql) as Array<{
+        columns: string[];
+        values: unknown[][];
+      }>;
+    }
+    const stmt = this.db.prepare(sql);
+    try {
+      stmt.bind(bindings as never[]);
+      const columns = stmt.getColumnNames();
+      const values: unknown[][] = [];
+      while (stmt.step()) {
+        values.push(stmt.get() as unknown[]);
+      }
+      if (columns.length === 0 && values.length === 0) return [];
+      return [{ columns, values }];
+    } finally {
+      stmt.free();
+    }
   }
 }
 

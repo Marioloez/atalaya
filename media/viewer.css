@@ -246,6 +246,49 @@ th {
   font-weight: 600;
 }
 
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.sortable:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+th.sortable.sorted {
+  color: var(--vscode-textLink-foreground, var(--vscode-focusBorder));
+}
+
+th .sort-indicator {
+  font-size: 10px;
+  margin-left: 4px;
+  opacity: 0.85;
+}
+
+tr.filter-row td {
+  position: sticky;
+  top: 30px;
+  background: var(--vscode-editor-background);
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.filter-input {
+  width: 100%;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: 2px;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.filter-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
 tbody tr:hover {
   background: var(--vscode-list-hoverBackground);
 }
