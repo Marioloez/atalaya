@@ -28,8 +28,16 @@
   const queryResults = document.getElementById("query-results");
   const dataExportEl = document.getElementById("data-export");
   const queryExportEl = document.getElementById("query-export");
+  const sqlSuggest = document.getElementById("sql-suggest");
 
   let lastQueryResult = null;
+  let currentSchema = { tables: {} };
+  const suggestState = {
+    visible: false,
+    items: [],
+    selected: 0,
+    insertStart: 0,
+  };
 
   function send(type, payload) {
     vscode.postMessage({ type, payload });
@@ -606,10 +614,186 @@
 
   runBtn.addEventListener("click", runQuery);
 
+  /* sql autocomplete --------------------------------------------- */
+
+  function detectContext(text, caret) {
+    const before = text.slice(0, caret);
+    const wordMatch = before.match(/[\w]*$/);
+    const currentWord = wordMatch ? wordMatch[0] : "";
+    const insertStart = caret - currentWord.length;
+    const beforeWord = before.slice(0, insertStart).replace(/[\s\n]+$/, "");
+    const kwMatch = beforeWord.match(
+      /(\bFROM\b|\bJOIN\b|\bINTO\b|\bUPDATE\b|\bSELECT\b|\bWHERE\b|\bAND\b|\bOR\b|\bON\b|\bORDER\s+BY\b|\bGROUP\s+BY\b|\bHAVING\b|\bSET\b|,|\()$/i,
+    );
+    if (!kwMatch) return null;
+    const kw = kwMatch[1].toUpperCase().replace(/\s+/g, " ");
+    const tableKws = ["FROM", "JOIN", "INTO", "UPDATE"];
+    return {
+      kind: tableKws.includes(kw) ? "table" : "column",
+      prefix: currentWord,
+      insertStart,
+    };
+  }
+
+  function referencedTables(text) {
+    const found = new Set();
+    const regex = /\b(?:FROM|JOIN|INTO|UPDATE)\s+["`]?(\w+)["`]?/gi;
+    let m;
+    while ((m = regex.exec(text)) !== null) {
+      if (currentSchema.tables[m[1]]) found.add(m[1]);
+    }
+    return [...found];
+  }
+
+  function buildSuggestions(text, ctx) {
+    const prefix = ctx.prefix.toLowerCase();
+    if (ctx.kind === "table") {
+      return Object.keys(currentSchema.tables)
+        .filter((name) => name.toLowerCase().includes(prefix))
+        .sort()
+        .slice(0, 50)
+        .map((name) => ({
+          kind: "table",
+          name,
+          detail: `${currentSchema.tables[name].length} cols`,
+        }));
+    }
+    const refTables = referencedTables(text);
+    const source =
+      refTables.length > 0 ? refTables : Object.keys(currentSchema.tables);
+    const seen = new Map();
+    for (const t of source) {
+      const cols = currentSchema.tables[t];
+      if (!cols) continue;
+      for (const c of cols) {
+        if (!seen.has(c.name)) {
+          seen.set(c.name, { type: c.type, table: t });
+        }
+      }
+    }
+    return [...seen.entries()]
+      .filter(([name]) => name.toLowerCase().includes(prefix))
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(0, 50)
+      .map(([name, info]) => ({
+        kind: "column",
+        name,
+        detail: info.type ? `${info.type} · ${info.table}` : info.table,
+      }));
+  }
+
+  function renderSuggest() {
+    sqlSuggest.innerHTML = "";
+    if (suggestState.items.length === 0) {
+      closeSuggest();
+      return;
+    }
+    suggestState.items.forEach((item, idx) => {
+      const li = document.createElement("li");
+      if (idx === suggestState.selected) li.className = "active";
+
+      const kind = document.createElement("span");
+      kind.className = "item-kind";
+      kind.textContent = item.kind;
+      li.appendChild(kind);
+
+      const name = document.createElement("span");
+      name.className = "item-name";
+      name.textContent = item.name;
+      li.appendChild(name);
+
+      if (item.detail) {
+        const detail = document.createElement("span");
+        detail.className = "item-detail";
+        detail.textContent = item.detail;
+        li.appendChild(detail);
+      }
+
+      li.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        suggestState.selected = idx;
+        applySuggestion();
+      });
+      sqlSuggest.appendChild(li);
+    });
+    sqlSuggest.hidden = false;
+    suggestState.visible = true;
+    const active = sqlSuggest.querySelector("li.active");
+    if (active) active.scrollIntoView({ block: "nearest" });
+  }
+
+  function applySuggestion() {
+    if (!suggestState.visible || suggestState.items.length === 0) return;
+    const item = suggestState.items[suggestState.selected];
+    if (!item) return;
+    const before = sqlInput.value.slice(0, suggestState.insertStart);
+    const after = sqlInput.value.slice(sqlInput.selectionStart);
+    const newCaret = suggestState.insertStart + item.name.length;
+    sqlInput.value = before + item.name + after;
+    sqlInput.setSelectionRange(newCaret, newCaret);
+    closeSuggest();
+  }
+
+  function closeSuggest() {
+    sqlSuggest.hidden = true;
+    sqlSuggest.innerHTML = "";
+    suggestState.visible = false;
+    suggestState.items = [];
+  }
+
+  function updateSuggest() {
+    const ctx = detectContext(sqlInput.value, sqlInput.selectionStart);
+    if (!ctx) {
+      closeSuggest();
+      return;
+    }
+    const items = buildSuggestions(sqlInput.value, ctx);
+    if (items.length === 0) {
+      closeSuggest();
+      return;
+    }
+    suggestState.items = items;
+    suggestState.selected = 0;
+    suggestState.insertStart = ctx.insertStart;
+    renderSuggest();
+  }
+
+  sqlInput.addEventListener("input", updateSuggest);
+  sqlInput.addEventListener("click", updateSuggest);
+  sqlInput.addEventListener("keyup", (e) => {
+    if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) {
+      updateSuggest();
+    }
+  });
+  sqlInput.addEventListener("blur", () => {
+    setTimeout(closeSuggest, 150);
+  });
+
   sqlInput.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
+      closeSuggest();
       runQuery();
+      return;
+    }
+    if (!suggestState.visible) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      suggestState.selected =
+        (suggestState.selected + 1) % suggestState.items.length;
+      renderSuggest();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      suggestState.selected =
+        (suggestState.selected - 1 + suggestState.items.length) %
+        suggestState.items.length;
+      renderSuggest();
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      applySuggestion();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeSuggest();
     }
   });
 
@@ -683,8 +867,12 @@
       case "updateCellResult":
         handleUpdateCellResult(msg.payload);
         break;
+      case "schema":
+        currentSchema = msg.payload || { tables: {} };
+        break;
       case "schemaChanged":
         send("listTables");
+        send("getSchema");
         if (currentTable) requestData();
         break;
       case "error":
@@ -700,4 +888,5 @@
   });
 
   send("listTables");
+  send("getSchema");
 })();

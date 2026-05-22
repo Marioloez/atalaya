@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-05-21
+
+### Added
+
+- SQL editor autocomplete:
+  - After `FROM`, `JOIN`, `INTO`, `UPDATE` → suggests table names
+  - After `SELECT`, `WHERE`, `AND`, `OR`, `ON`, `,`, `(`, etc. → suggests
+    columns from tables referenced in the query (falls back to all columns
+    of all tables if the query doesn't reference one yet)
+  - Live filter while typing (case-insensitive contains)
+  - `Arrow Up/Down` navigate, `Enter` / `Tab` select, `Esc` closes
+  - Click an item to insert it
+  - `Cmd/Ctrl+Enter` still runs the query — the popup never intercepts it
+- New `service.getSchema()` returns `{ tables: { name: ColumnInfo[] } }` for
+  the whole database
+
+### Notes
+
+- Implemented entirely in vanilla JS (~250 lines). No editor library,
+  no parser, no new runtime dependencies. The project still ships with
+  exactly one runtime dependency (sql.js)
+
 ## [0.0.8] - 2026-05-21
 
 ### Added

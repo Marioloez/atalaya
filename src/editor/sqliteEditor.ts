@@ -20,6 +20,7 @@ class AtalayaDocument implements vscode.CustomDocument {
 interface IncomingMessage {
   type:
     | "listTables"
+    | "getSchema"
     | "getTableData"
     | "runQuery"
     | "updateCell"
@@ -137,6 +138,13 @@ export class SqliteEditorProvider
         panel.webview.postMessage({
           type: "tables",
           payload: document.service.listTables(),
+        });
+        return;
+      }
+      case "getSchema": {
+        panel.webview.postMessage({
+          type: "schema",
+          payload: document.service.getSchema(),
         });
         return;
       }
@@ -357,12 +365,15 @@ export class SqliteEditorProvider
 
       <section id="tab-query" class="tab-panel">
         <div id="query-controls">
-          <textarea
-            id="sql-input"
-            spellcheck="false"
-            autocomplete="off"
-            placeholder="SELECT * FROM ..."
-          ></textarea>
+          <div id="sql-input-wrap">
+            <textarea
+              id="sql-input"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="SELECT * FROM ..."
+            ></textarea>
+            <ul id="sql-suggest" hidden></ul>
+          </div>
           <div id="query-actions">
             <button id="run-btn" type="button">Run · Ctrl/Cmd+Enter</button>
             <span id="query-status"></span>

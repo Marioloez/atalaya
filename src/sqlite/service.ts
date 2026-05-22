@@ -217,6 +217,15 @@ export class SqliteService {
     };
   }
 
+  getSchema(): { tables: Record<string, ColumnInfo[]> } {
+    const tables = this.listTables();
+    const out: Record<string, ColumnInfo[]> = {};
+    for (const name of tables) {
+      out[name] = this.getTableMetadata(name).columns;
+    }
+    return { tables: out };
+  }
+
   getAllRows(table: string): QueryResult {
     const quoted = quoteIdent(table);
     const res = this.db.exec(`SELECT * FROM ${quoted}`);
