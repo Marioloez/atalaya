@@ -1,0 +1,54 @@
+{
+  "name": "sqlitex",
+  "displayName": "Sqlitex",
+  "description": "Minimal, audit-friendly SQLite viewer for VSCode. Single dependency (sql.js WASM), no native code.",
+  "version": "0.0.1",
+  "publisher": "mantonio",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "sqlite",
+    "sqlite3",
+    "database",
+    "viewer",
+    "db"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "sqlitex.viewer",
+        "displayName": "Sqlitex",
+        "selector": [
+          { "filenamePattern": "*.db" },
+          { "filenamePattern": "*.sqlite" },
+          { "filenamePattern": "*.sqlite3" }
+        ],
+        "priority": "default"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "sql.js": "^1.10.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/sql.js": "^1.4.9",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.24.0",
+    "typescript": "^5.3.3"
+  }
+}
