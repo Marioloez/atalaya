@@ -6,7 +6,7 @@ import {
 } from "../sqlite/service";
 import { ExportFormat, toCsv, toJson } from "../export/format";
 
-class FaroDocument implements vscode.CustomDocument {
+class AtalayaDocument implements vscode.CustomDocument {
   constructor(
     public readonly uri: vscode.Uri,
     public readonly service: SqliteService,
@@ -62,9 +62,9 @@ interface ExportQueryPayload {
 }
 
 export class SqliteEditorProvider
-  implements vscode.CustomEditorProvider<FaroDocument>
+  implements vscode.CustomEditorProvider<AtalayaDocument>
 {
-  public static readonly viewType = "faro.viewer";
+  public static readonly viewType = "atalaya.viewer";
 
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
     return vscode.window.registerCustomEditorProvider(
@@ -78,12 +78,12 @@ export class SqliteEditorProvider
   }
 
   private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<
-    vscode.CustomDocumentEditEvent<FaroDocument>
+    vscode.CustomDocumentEditEvent<AtalayaDocument>
   >();
   public readonly onDidChangeCustomDocument =
     this._onDidChangeCustomDocument.event;
 
-  private readonly panels = new WeakMap<FaroDocument, vscode.WebviewPanel>();
+  private readonly panels = new WeakMap<AtalayaDocument, vscode.WebviewPanel>();
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -91,14 +91,14 @@ export class SqliteEditorProvider
     uri: vscode.Uri,
     _openContext: vscode.CustomDocumentOpenContext,
     _token: vscode.CancellationToken,
-  ): Promise<FaroDocument> {
+  ): Promise<AtalayaDocument> {
     const buffer = await vscode.workspace.fs.readFile(uri);
     const service = await SqliteService.create(this.context, buffer);
-    return new FaroDocument(uri, service);
+    return new AtalayaDocument(uri, service);
   }
 
   async resolveCustomEditor(
-    document: FaroDocument,
+    document: AtalayaDocument,
     panel: vscode.WebviewPanel,
     _token: vscode.CancellationToken,
   ): Promise<void> {
@@ -128,7 +128,7 @@ export class SqliteEditorProvider
   }
 
   private async handleMessage(
-    document: FaroDocument,
+    document: AtalayaDocument,
     panel: vscode.WebviewPanel,
     msg: IncomingMessage,
   ): Promise<void> {
@@ -229,7 +229,7 @@ export class SqliteEditorProvider
   }
 
   private executeWithDirtyTracking<T extends { mutated: boolean }>(
-    document: FaroDocument,
+    document: AtalayaDocument,
     label: string,
     run: () => T,
   ): T {
@@ -254,13 +254,13 @@ export class SqliteEditorProvider
     return result;
   }
 
-  private notifySchemaChanged(document: FaroDocument): void {
+  private notifySchemaChanged(document: AtalayaDocument): void {
     const panel = this.panels.get(document);
     panel?.webview.postMessage({ type: "schemaChanged" });
   }
 
   saveCustomDocument(
-    document: FaroDocument,
+    document: AtalayaDocument,
     _token: vscode.CancellationToken,
   ): Thenable<void> {
     const buffer = document.service.export();
@@ -268,7 +268,7 @@ export class SqliteEditorProvider
   }
 
   async saveCustomDocumentAs(
-    document: FaroDocument,
+    document: AtalayaDocument,
     destination: vscode.Uri,
     _token: vscode.CancellationToken,
   ): Promise<void> {
@@ -277,7 +277,7 @@ export class SqliteEditorProvider
   }
 
   async revertCustomDocument(
-    document: FaroDocument,
+    document: AtalayaDocument,
     _token: vscode.CancellationToken,
   ): Promise<void> {
     const buffer = await vscode.workspace.fs.readFile(document.uri);
@@ -286,7 +286,7 @@ export class SqliteEditorProvider
   }
 
   async backupCustomDocument(
-    document: FaroDocument,
+    document: AtalayaDocument,
     context: vscode.CustomDocumentBackupContext,
     _token: vscode.CancellationToken,
   ): Promise<vscode.CustomDocumentBackup> {
@@ -324,7 +324,7 @@ export class SqliteEditorProvider
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="${csp}" />
     <link rel="stylesheet" href="${mediaUri("viewer.css")}" />
-    <title>Faro</title>
+    <title>Atalaya</title>
   </head>
   <body>
     <aside id="sidebar">

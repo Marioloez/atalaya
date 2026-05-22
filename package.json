@@ -1,6 +1,6 @@
 {
-  "name": "faro",
-  "displayName": "Faro",
+  "name": "atalaya",
+  "displayName": "Atalaya",
   "description": "Audit-friendly SQLite viewer for VSCode. Browse, query, edit, and export .db / .sqlite / .sqlite3 files. One runtime dependency, no native code.",
   "version": "0.0.5",
   "publisher": "Marioloez",
@@ -26,12 +26,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Marioloez/faro.git"
+    "url": "https://github.com/Marioloez/atalaya.git"
   },
   "bugs": {
-    "url": "https://github.com/Marioloez/faro/issues"
+    "url": "https://github.com/Marioloez/atalaya/issues"
   },
-  "homepage": "https://github.com/Marioloez/faro#readme",
+  "homepage": "https://github.com/Marioloez/atalaya#readme",
   "galleryBanner": {
     "color": "#0E639C",
     "theme": "dark"
@@ -41,8 +41,8 @@
   "contributes": {
     "customEditors": [
       {
-        "viewType": "faro.viewer",
-        "displayName": "Faro",
+        "viewType": "atalaya.viewer",
+        "displayName": "Atalaya",
         "selector": [
           { "filenamePattern": "*.db" },
           { "filenamePattern": "*.sqlite" },
