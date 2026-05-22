@@ -1,12 +1,19 @@
 import * as vscode from "vscode";
 import { SqliteService } from "../sqlite/service";
 
-interface SqlitexDocument extends vscode.CustomDocument {
-  readonly service: SqliteService;
+class SqlitexDocument implements vscode.CustomDocument {
+  constructor(
+    public readonly uri: vscode.Uri,
+    public readonly service: SqliteService,
+  ) {}
+
+  dispose(): void {
+    this.service.close();
+  }
 }
 
 interface IncomingMessage {
-  type: "listTables" | "getTableData";
+  type: "listTables" | "getTableData" | "runQuery";
   payload?: unknown;
 }
 
@@ -16,8 +23,12 @@ interface GetTableDataPayload {
   offset: number;
 }
 
+interface RunQueryPayload {
+  sql: string;
+}
+
 export class SqliteEditorProvider
-  implements vscode.CustomReadonlyEditorProvider<SqlitexDocument>
+  implements vscode.CustomEditorProvider<SqlitexDocument>
 {
   public static readonly viewType = "sqlitex.viewer";
 
@@ -32,6 +43,14 @@ export class SqliteEditorProvider
     );
   }
 
+  private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<
+    vscode.CustomDocumentEditEvent<SqlitexDocument>
+  >();
+  public readonly onDidChangeCustomDocument =
+    this._onDidChangeCustomDocument.event;
+
+  private readonly panels = new WeakMap<SqlitexDocument, vscode.WebviewPanel>();
+
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   async openCustomDocument(
@@ -41,13 +60,7 @@ export class SqliteEditorProvider
   ): Promise<SqlitexDocument> {
     const buffer = await vscode.workspace.fs.readFile(uri);
     const service = await SqliteService.create(this.context, buffer);
-    return {
-      uri,
-      service,
-      dispose() {
-        service.close();
-      },
-    };
+    return new SqlitexDocument(uri, service);
   }
 
   async resolveCustomEditor(
@@ -55,6 +68,9 @@ export class SqliteEditorProvider
     panel: vscode.WebviewPanel,
     _token: vscode.CancellationToken,
   ): Promise<void> {
+    this.panels.set(document, panel);
+    panel.onDidDispose(() => this.panels.delete(document));
+
     panel.webview.options = {
       enableScripts: true,
       localResourceRoots: [
@@ -69,7 +85,9 @@ export class SqliteEditorProvider
       } catch (err) {
         panel.webview.postMessage({
           type: "error",
-          payload: { message: err instanceof Error ? err.message : String(err) },
+          payload: {
+            message: err instanceof Error ? err.message : String(err),
+          },
         });
       }
     });
@@ -82,8 +100,10 @@ export class SqliteEditorProvider
   ): void {
     switch (msg.type) {
       case "listTables": {
-        const tables = document.service.listTables();
-        panel.webview.postMessage({ type: "tables", payload: tables });
+        panel.webview.postMessage({
+          type: "tables",
+          payload: document.service.listTables(),
+        });
         return;
       }
       case "getTableData": {
@@ -95,7 +115,80 @@ export class SqliteEditorProvider
         });
         return;
       }
+      case "runQuery": {
+        const { sql } = msg.payload as RunQueryPayload;
+        const before = document.service.snapshot();
+        const result = document.service.runQuery(sql);
+        if (result.mutated) {
+          const after = document.service.snapshot();
+          this._onDidChangeCustomDocument.fire({
+            document,
+            label: "Run SQL",
+            undo: () => {
+              document.service.restore(before);
+              this.notifySchemaChanged(document);
+            },
+            redo: () => {
+              document.service.restore(after);
+              this.notifySchemaChanged(document);
+            },
+          });
+          this.notifySchemaChanged(document);
+        }
+        panel.webview.postMessage({ type: "queryResult", payload: result });
+        return;
+      }
     }
+  }
+
+  private notifySchemaChanged(document: SqlitexDocument): void {
+    const panel = this.panels.get(document);
+    panel?.webview.postMessage({ type: "schemaChanged" });
+  }
+
+  saveCustomDocument(
+    document: SqlitexDocument,
+    _token: vscode.CancellationToken,
+  ): Thenable<void> {
+    const buffer = document.service.export();
+    return Promise.resolve(vscode.workspace.fs.writeFile(document.uri, buffer));
+  }
+
+  async saveCustomDocumentAs(
+    document: SqlitexDocument,
+    destination: vscode.Uri,
+    _token: vscode.CancellationToken,
+  ): Promise<void> {
+    const buffer = document.service.export();
+    await vscode.workspace.fs.writeFile(destination, buffer);
+  }
+
+  async revertCustomDocument(
+    document: SqlitexDocument,
+    _token: vscode.CancellationToken,
+  ): Promise<void> {
+    const buffer = await vscode.workspace.fs.readFile(document.uri);
+    document.service.restore(buffer);
+    this.notifySchemaChanged(document);
+  }
+
+  async backupCustomDocument(
+    document: SqlitexDocument,
+    context: vscode.CustomDocumentBackupContext,
+    _token: vscode.CancellationToken,
+  ): Promise<vscode.CustomDocumentBackup> {
+    const buffer = document.service.export();
+    await vscode.workspace.fs.writeFile(context.destination, buffer);
+    return {
+      id: context.destination.toString(),
+      delete: async () => {
+        try {
+          await vscode.workspace.fs.delete(context.destination);
+        } catch {
+          // backup may already be gone
+        }
+      },
+    };
   }
 
   private renderHtml(webview: vscode.Webview): string {
@@ -127,12 +220,37 @@ export class SqliteEditorProvider
     </aside>
     <main id="main">
       <header id="topbar">
-        <span id="table-title">Select a table</span>
+        <nav id="tabs">
+          <button class="tab active" data-tab="data" type="button">Data</button>
+          <button class="tab" data-tab="query" type="button">Query</button>
+        </nav>
         <span id="pager"></span>
       </header>
-      <div id="table-wrap">
-        <table id="data"></table>
-      </div>
+
+      <section id="tab-data" class="tab-panel active">
+        <div id="data-header">
+          <span id="table-title">Select a table</span>
+        </div>
+        <div id="table-wrap">
+          <table id="data"></table>
+        </div>
+      </section>
+
+      <section id="tab-query" class="tab-panel">
+        <div id="query-controls">
+          <textarea
+            id="sql-input"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="SELECT * FROM ..."
+          ></textarea>
+          <div id="query-actions">
+            <button id="run-btn" type="button">Run · Ctrl/Cmd+Enter</button>
+            <span id="query-status"></span>
+          </div>
+        </div>
+        <div id="query-results"></div>
+      </section>
     </main>
     <script nonce="${nonce}" src="${mediaUri("viewer.js")}"></script>
   </body>

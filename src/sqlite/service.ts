@@ -11,11 +11,24 @@ export interface TableDataResult extends QueryResult {
   total: number;
 }
 
+export interface RunQueryResult {
+  results: QueryResult[];
+  rowsModified: number;
+  mutated: boolean;
+  durationMs: number;
+}
+
+const NON_READ_TOKEN =
+  /\b(insert|update|delete|replace|create|drop|alter|truncate|reindex|vacuum|attach|detach)\b/i;
+
 export class SqliteService {
-  private constructor(
-    private readonly sql: SqlJsStatic,
-    private readonly db: Database,
-  ) {}
+  private sql: SqlJsStatic;
+  private db: Database;
+
+  private constructor(sql: SqlJsStatic, db: Database) {
+    this.sql = sql;
+    this.db = db;
+  }
 
   static async create(
     context: vscode.ExtensionContext,
@@ -68,14 +81,42 @@ export class SqliteService {
     };
   }
 
-  runQuery(sql: string): QueryResult[] {
-    return this.db.exec(sql).map((r) => ({
-      columns: r.columns,
-      rows: r.values as unknown[][],
-    }));
+  runQuery(sql: string): RunQueryResult {
+    const started = Date.now();
+    const execResult = this.db.exec(sql);
+    const rowsModified = this.db.getRowsModified();
+    const mutated = rowsModified > 0 || NON_READ_TOKEN.test(stripComments(sql));
+    return {
+      results: execResult.map((r) => ({
+        columns: r.columns,
+        rows: r.values as unknown[][],
+      })),
+      rowsModified,
+      mutated,
+      durationMs: Date.now() - started,
+    };
+  }
+
+  snapshot(): Uint8Array {
+    return this.db.export();
+  }
+
+  restore(buffer: Uint8Array): void {
+    this.db.close();
+    this.db = new this.sql.Database(buffer);
+  }
+
+  export(): Uint8Array {
+    return this.db.export();
   }
 
   close(): void {
     this.db.close();
   }
+}
+
+function stripComments(sql: string): string {
+  return sql
+    .replace(/--[^\n]*/g, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
 }
