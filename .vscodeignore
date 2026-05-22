@@ -11,6 +11,7 @@ src/**
 **/.eslintrc*
 .editorconfig
 icon.svg
+docs/**
 
 # strip sql.js extras
 node_modules/sql.js/.jsdoc.config.json

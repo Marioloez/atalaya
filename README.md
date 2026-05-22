@@ -7,6 +7,8 @@ An **audit-friendly** SQLite viewer for VSCode. One runtime dependency, no nativ
 
 Open `.db`, `.sqlite`, `.sqlite3` files like any other file in your editor. Browse tables, write SQL, edit rows in place, export to CSV / JSON. That's it.
 
+![Atalaya — general view](https://raw.githubusercontent.com/Marioloez/atalaya/main/docs/general-view.png)
+
 > *Atalaya* — a watchtower with a clear view over the territory below.
 
 ## Why this exists
@@ -17,15 +19,27 @@ Most VSCode SQLite extensions bundle dozens of npm dependencies, native modules,
 
 - Open `.db`, `.sqlite`, `.sqlite3` files as a custom editor
 - Sidebar lists tables; click any to browse rows with pagination
-- **SQL query editor** tab — `Ctrl/Cmd+Enter` to run
+- **Type-aware coloring** in the Data tab — INT/REAL right-aligned with tabular numerals, dates in green, BLOB italic; PK and NOT NULL markers in the header
+- **Sort** by clicking column headers (▲ / ▼); the active column is highlighted across the whole column
+- **Filter** any column with `LIKE '%text%'` from a filter row beneath the headers; active filters stand out
 - **Double-click** any data cell to edit in place
 - Mutating statements (SQL or inline edits) mark the document as modified; explicit `Cmd+S` writes to disk
 - Native **undo / redo** for executed queries and inline edits
-- **Sort** by clicking column headers (▲ / ▼)
-- **Filter** any column with `LIKE '%text%'` from a filter row beneath the headers
 - **Export** tables or query results to CSV / JSON (BLOBs as base64)
 - Read-only fallback for views, tables without primary key, and BLOB columns
 - Webview locked down with strict CSP and per-load nonce — no remote resources
+
+### SQL Editor with autocomplete
+
+Write arbitrary SQL with table and column suggestions. After `FROM` / `JOIN` / `INTO` / `UPDATE` you get tables; after `SELECT` / `WHERE` / `AND` / `ON` / `,` / `(` and friends you get columns scoped to the tables already referenced in the query. `Ctrl/Cmd+Enter` runs.
+
+![SQL editor with autocomplete suggesting columns](https://raw.githubusercontent.com/Marioloez/atalaya/main/docs/autocomplete.png)
+
+### Query results
+
+Multiple result sets are rendered separately. Mutations (INSERT / UPDATE / DELETE / DDL) mark the document as modified and trigger the undo stack — no surprise writes to disk until you `Cmd+S`.
+
+![Query results panel](https://raw.githubusercontent.com/Marioloez/atalaya/main/docs/query-result.png)
 
 ## Installation
 
@@ -68,6 +82,7 @@ code --install-extension atalaya-<version>.vsix
 - Undo history holds full snapshots of the database in memory; for very large databases (>100 MB) consider saving and reopening to free memory after many edits
 - Filter only supports `LIKE '%value%'` (contains). For range or equality operators use the SQL editor
 - Tables without a primary key or `rowid` cannot be inline-edited; use the SQL editor
+- Autocomplete is regex-based, not a full SQL parser; column suggestions don't resolve table aliases (`SELECT u.|` where `u` is `users u`)
 
 ## Development
 

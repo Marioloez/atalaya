@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.10] - 2026-05-21
+
+### Added
+
+- Three screenshots in the README to showcase the editor:
+  - Hero image of the general view (table list, data, status bar)
+  - SQL autocomplete suggesting columns scoped to a `FROM` clause
+  - Query result panel after running a `SELECT`
+- Sections in the README organized around the actual user flow: features,
+  SQL editor with autocomplete, query results, install, usage, security
+- Known limitations section now mentions the regex-based nature of the
+  autocomplete (no alias resolution)
+
+### Notes
+
+- Images live in `docs/` in the GitHub repo and are referenced from the
+  README via absolute `raw.githubusercontent.com` URLs. They are NOT
+  bundled in the `.vsix` so the package stays at ~414 KB. The marketplace
+  listing pulls them over HTTPS at render time.
+
 ## [0.0.9] - 2026-05-21
 
 ### Added

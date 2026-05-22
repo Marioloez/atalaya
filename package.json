@@ -2,7 +2,7 @@
   "name": "atalaya",
   "displayName": "Atalaya",
   "description": "Audit-friendly SQLite viewer for VSCode. Browse, query, edit, and export .db / .sqlite / .sqlite3 files. One runtime dependency, no native code.",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "publisher": "Marioloez",
   "license": "MIT",
   "icon": "icon.png",
