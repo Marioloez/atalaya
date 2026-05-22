@@ -1,53 +1,89 @@
 # Sqlitex
 
-A minimal, audit-friendly SQLite viewer for VSCode.
+[![Version](https://img.shields.io/visual-studio-marketplace/v/Marioloez.sqlitex.svg)](https://marketplace.visualstudio.com/items?itemName=Marioloez.sqlitex)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/Marioloez.sqlitex.svg)](https://marketplace.visualstudio.com/items?itemName=Marioloez.sqlitex)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Built because supply-chain risks in third-party VSCode extensions are real. This one keeps the dependency surface tiny: a single runtime dependency (`sql.js` — the official SQLite compiled to WebAssembly), no native code, no telemetry, no network access.
+An **audit-friendly** SQLite viewer for VSCode. One runtime dependency, no native code, no telemetry.
+
+Open `.db`, `.sqlite`, `.sqlite3` files like any other file in your editor. Browse tables, write SQL, edit rows in place, export to CSV / JSON. That's it.
+
+## Why this exists
+
+Most VSCode SQLite extensions bundle dozens of npm dependencies, native modules, or both. That's a real supply-chain surface for something that just needs to read a file. Sqlitex ships with **one runtime dependency** — [sql.js](https://github.com/sql-js/sql.js), the official SQLite compiled to WebAssembly — and zero native code. Auditing the source is straightforward.
 
 ## Features
 
-- Opens `.db`, `.sqlite`, `.sqlite3` files as a custom editor
-- Sidebar lists tables; click any to browse rows with pagination (100 per page)
-- SQL query editor tab — write arbitrary SQL, `Ctrl/Cmd+Enter` to run
-- **Double-click any cell** in the Data tab to edit it in place
+- Open `.db`, `.sqlite`, `.sqlite3` files as a custom editor
+- Sidebar lists tables; click any to browse rows with pagination
+- **SQL query editor** tab — `Ctrl/Cmd+Enter` to run
+- **Double-click** any data cell to edit in place
 - Mutating statements (SQL or inline edits) mark the document as modified; explicit `Cmd+S` writes to disk
-- Native undo/redo for executed queries and inline edits
-- Revert support reloads from disk
+- Native **undo / redo** for executed queries and inline edits
+- **Sort** by clicking column headers (▲ / ▼)
+- **Filter** any column with `LIKE '%text%'` from a filter row beneath the headers
+- **Export** tables or query results to CSV / JSON (BLOBs as base64)
 - Read-only fallback for views, tables without primary key, and BLOB columns
-- Click column headers to sort; per-column filter row with `LIKE '%...%'`
-- Export tables and query results to CSV or JSON (BLOBs as base64)
-- Webview locked down with strict CSP and per-load nonce
+- Webview locked down with strict CSP and per-load nonce — no remote resources
 
-## Roadmap
+## Installation
 
-- [ ] Schema viewer (columns, types, indexes, foreign keys)
-- [ ] Add / delete rows from the Data tab
+### From the Marketplace
 
-## Development
+Search for **Sqlitex** in the VSCode Extensions view, or install via the command line:
 
 ```bash
-npm install
-npm run compile
-# Open this folder in VSCode and press F5 to launch an Extension Development Host
+code --install-extension Marioloez.sqlitex
 ```
 
-In the Extension Development Host window, open any `.db` / `.sqlite` / `.sqlite3` file.
+### From a `.vsix` file
 
-## Package as `.vsix`
+Download a release from the [Releases](https://github.com/Marioloez/sqlitex/releases) page and install:
 
 ```bash
-npm run package
-code --install-extension sqlitex-0.0.1.vsix
+code --install-extension sqlitex-<version>.vsix
 ```
+
+## Usage
+
+1. Open any `.db`, `.sqlite`, or `.sqlite3` file in VSCode.
+2. The Sqlitex editor opens automatically.
+3. Click a table on the left to browse rows.
+4. Switch to the **Query** tab to run arbitrary SQL.
+5. **Double-click** any cell in the Data tab to edit it. `Enter` saves, `Esc` cancels.
+6. Use the **Export CSV / JSON** buttons to dump the current table or query result.
+7. `Cmd+S` writes pending changes back to the file. Close without saving to discard.
 
 ## Security posture
 
 - **One runtime dependency**: `sql.js` (WASM build of official SQLite)
 - **No native modules**: no `node-gyp`, no platform-specific compilation
-- **Strict CSP** in the webview: `default-src 'none'` with per-load script nonce
+- **Strict CSP** in the webview: `default-src 'none'` + per-load script nonce
 - **No network calls**, no telemetry, no remote resource loading
-- **Open source**, MIT — audit every line
+- **MIT licensed**, open source — audit every line
+
+## Known limitations
+
+- Undo history holds full snapshots of the database in memory; for very large databases (>100 MB) consider saving and reopening to free memory after many edits
+- Filter only supports `LIKE '%value%'` (contains). For range or equality operators use the SQL editor
+- Tables without a primary key or `rowid` cannot be inline-edited; use the SQL editor
+
+## Development
+
+```bash
+git clone https://github.com/Marioloez/sqlitex.git
+cd sqlitex
+npm install
+npm run compile
+# Open the folder in VSCode and press F5 to launch an Extension Development Host
+```
+
+## Roadmap
+
+- Schema viewer (columns, types, indexes, foreign keys)
+- Add / delete rows from the Data tab
+- Undo history memory cap for large databases
 
 ## License
 
-MIT
+[MIT](LICENSE)

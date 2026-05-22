@@ -3,7 +3,33 @@
 src/**
 .gitignore
 .git/**
+.github/**
 **/*.map
+**/*.ts
+!out/**/*.js
 **/tsconfig.json
 **/.eslintrc*
 .editorconfig
+icon.svg
+
+# strip sql.js extras
+node_modules/sql.js/.jsdoc.config.json
+node_modules/sql.js/eslint.config.cjs
+node_modules/sql.js/logo.svg
+node_modules/sql.js/.devcontainer/**
+
+# only ship the wasm build we actually use (sql-wasm.js + sql-wasm.wasm)
+node_modules/sql.js/dist/sql-asm*
+node_modules/sql.js/dist/sql-wasm-browser*
+node_modules/sql.js/dist/sql-wasm-debug*
+node_modules/sql.js/dist/worker.*
+
+# trim noise from any node_module
+node_modules/**/test/**
+node_modules/**/tests/**
+node_modules/**/*.md
+node_modules/**/*.ts
+node_modules/**/*.map
+node_modules/.bin/**
+node_modules/.package-lock.json
+node_modules/@types/**

@@ -1,24 +1,41 @@
 {
   "name": "sqlitex",
   "displayName": "Sqlitex",
-  "description": "Minimal, audit-friendly SQLite viewer for VSCode. Single dependency (sql.js WASM), no native code.",
-  "version": "0.0.1",
-  "publisher": "mantonio",
+  "description": "Audit-friendly SQLite viewer for VSCode. Browse, query, edit, and export .db / .sqlite / .sqlite3 files. One runtime dependency, no native code.",
+  "version": "0.0.5",
+  "publisher": "Marioloez",
   "license": "MIT",
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other",
-    "Visualization"
+    "Visualization",
+    "Data Science",
+    "Other"
   ],
   "keywords": [
     "sqlite",
     "sqlite3",
     "database",
     "viewer",
-    "db"
+    "db",
+    "sql",
+    "csv",
+    "json"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Marioloez/sqlitex.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Marioloez/sqlitex/issues"
+  },
+  "homepage": "https://github.com/Marioloez/sqlitex#readme",
+  "galleryBanner": {
+    "color": "#0E639C",
+    "theme": "dark"
+  },
   "main": "./out/extension.js",
   "activationEvents": [],
   "contributes": {
@@ -39,7 +56,8 @@
     "compile": "tsc -p .",
     "watch": "tsc -w -p .",
     "vscode:prepublish": "npm run compile",
-    "package": "vsce package"
+    "package": "vsce package",
+    "publish": "vsce publish"
   },
   "dependencies": {
     "sql.js": "^1.10.3"
