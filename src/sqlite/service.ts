@@ -184,6 +184,18 @@ export class SqliteService {
     };
   }
 
+  getAllRows(table: string): QueryResult {
+    const quoted = quoteIdent(table);
+    const res = this.db.exec(`SELECT * FROM ${quoted}`);
+    if (res.length === 0) {
+      return { columns: [], rows: [] };
+    }
+    return {
+      columns: res[0].columns,
+      rows: res[0].values as unknown[][],
+    };
+  }
+
   runQuery(sql: string): RunQueryResult {
     const started = Date.now();
     const execResult = this.db.exec(sql);

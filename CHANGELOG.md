@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-05-21
+
+### Added
+
+- Export table contents to CSV or JSON via buttons in the Data tab header
+- Export query results to CSV or JSON via buttons in the Query tab
+- BLOB values are base64-encoded in both formats; NULLs become empty CSV
+  fields and JSON `null`
+- Native `Save As...` dialog with sensible default file name
+
 ## [0.0.3] - 2026-05-21
 
 ### Added

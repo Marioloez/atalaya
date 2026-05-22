@@ -21,6 +21,10 @@
   const runBtn = document.getElementById("run-btn");
   const queryStatus = document.getElementById("query-status");
   const queryResults = document.getElementById("query-results");
+  const dataExportEl = document.getElementById("data-export");
+  const queryExportEl = document.getElementById("query-export");
+
+  let lastQueryResult = null;
 
   function send(type, payload) {
     vscode.postMessage({ type, payload });
@@ -85,6 +89,7 @@
       badgeEl.textContent = "no primary key · read-only";
       badgeEl.className = "badge readonly";
     }
+    dataExportEl.hidden = payload.total === 0;
 
     dataEl.innerHTML = "";
 
@@ -369,6 +374,27 @@
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 
+  /* export -------------------------------------------------------- */
+
+  document.querySelectorAll(".export-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const format = btn.dataset.format;
+      const target = btn.dataset.target;
+      if (target === "query") {
+        if (!lastQueryResult) return;
+        send("exportQuery", {
+          columns: lastQueryResult.columns,
+          rows: lastQueryResult.rows,
+          format,
+          defaultName: `query.${format}`,
+        });
+      } else {
+        if (!currentTable) return;
+        send("exportTable", { table: currentTable, format });
+      }
+    });
+  });
+
   /* query --------------------------------------------------------- */
 
   function runQuery() {
@@ -394,6 +420,8 @@
 
     const { results, rowsModified, mutated, durationMs } = payload;
     queryResults.innerHTML = "";
+    lastQueryResult = null;
+    queryExportEl.hidden = true;
 
     if (results.length === 0) {
       const summary = mutated
@@ -403,6 +431,9 @@
       queryStatus.textContent = summary;
       return;
     }
+
+    lastQueryResult = results[0];
+    queryExportEl.hidden = results[0].rows.length === 0;
 
     queryStatus.className = mutated ? "mutated" : "";
     const total = results.reduce((sum, r) => sum + r.rows.length, 0);

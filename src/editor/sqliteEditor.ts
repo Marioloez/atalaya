@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { SqliteService } from "../sqlite/service";
+import { QueryResult, SqliteService } from "../sqlite/service";
+import { ExportFormat, toCsv, toJson } from "../export/format";
 
 class SqlitexDocument implements vscode.CustomDocument {
   constructor(
@@ -13,7 +14,13 @@ class SqlitexDocument implements vscode.CustomDocument {
 }
 
 interface IncomingMessage {
-  type: "listTables" | "getTableData" | "runQuery" | "updateCell";
+  type:
+    | "listTables"
+    | "getTableData"
+    | "runQuery"
+    | "updateCell"
+    | "exportTable"
+    | "exportQuery";
   payload?: unknown;
 }
 
@@ -33,6 +40,18 @@ interface UpdateCellPayload {
   newValue: unknown;
   keyColumns: string[];
   keyValues: unknown[];
+}
+
+interface ExportTablePayload {
+  table: string;
+  format: ExportFormat;
+}
+
+interface ExportQueryPayload {
+  columns: string[];
+  rows: unknown[][];
+  format: ExportFormat;
+  defaultName?: string;
 }
 
 export class SqliteEditorProvider
@@ -87,9 +106,9 @@ export class SqliteEditorProvider
     };
     panel.webview.html = this.renderHtml(panel.webview);
 
-    panel.webview.onDidReceiveMessage((msg: IncomingMessage) => {
+    panel.webview.onDidReceiveMessage(async (msg: IncomingMessage) => {
       try {
-        this.handleMessage(document, panel, msg);
+        await this.handleMessage(document, panel, msg);
       } catch (err) {
         panel.webview.postMessage({
           type: "error",
@@ -101,11 +120,11 @@ export class SqliteEditorProvider
     });
   }
 
-  private handleMessage(
+  private async handleMessage(
     document: SqlitexDocument,
     panel: vscode.WebviewPanel,
     msg: IncomingMessage,
-  ): void {
+  ): Promise<void> {
     switch (msg.type) {
       case "listTables": {
         panel.webview.postMessage({
@@ -155,7 +174,46 @@ export class SqliteEditorProvider
         });
         return;
       }
+      case "exportTable": {
+        const { table, format } = msg.payload as ExportTablePayload;
+        const data = document.service.getAllRows(table);
+        await this.exportToFile(`${table}.${format}`, data, format);
+        return;
+      }
+      case "exportQuery": {
+        const { columns, rows, format, defaultName } =
+          msg.payload as ExportQueryPayload;
+        await this.exportToFile(
+          defaultName ?? `query.${format}`,
+          { columns, rows },
+          format,
+        );
+        return;
+      }
     }
+  }
+
+  private async exportToFile(
+    defaultName: string,
+    data: QueryResult,
+    format: ExportFormat,
+  ): Promise<void> {
+    const content =
+      format === "csv"
+        ? toCsv(data.columns, data.rows)
+        : toJson(data.columns, data.rows);
+
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(defaultName),
+      filters:
+        format === "csv" ? { "CSV": ["csv"] } : { "JSON": ["json"] },
+    });
+    if (!uri) return;
+
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf-8"));
+    vscode.window.showInformationMessage(
+      `Exported ${data.rows.length} row(s) to ${uri.fsPath}`,
+    );
   }
 
   private executeWithDirtyTracking<T extends { mutated: boolean }>(
@@ -274,6 +332,11 @@ export class SqliteEditorProvider
         <div id="data-header">
           <span id="table-title">Select a table</span>
           <span id="data-badge"></span>
+          <div class="spacer"></div>
+          <div class="export-actions" id="data-export" hidden>
+            <button class="export-btn" data-format="csv" type="button">Export CSV</button>
+            <button class="export-btn" data-format="json" type="button">Export JSON</button>
+          </div>
         </div>
         <div id="table-wrap">
           <table id="data"></table>
@@ -291,6 +354,11 @@ export class SqliteEditorProvider
           <div id="query-actions">
             <button id="run-btn" type="button">Run · Ctrl/Cmd+Enter</button>
             <span id="query-status"></span>
+            <div class="spacer"></div>
+            <div class="export-actions" id="query-export" hidden>
+              <button class="export-btn" data-format="csv" data-target="query" type="button">Export CSV</button>
+              <button class="export-btn" data-format="json" data-target="query" type="button">Export JSON</button>
+            </div>
           </div>
         </div>
         <div id="query-results"></div>
