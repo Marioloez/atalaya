@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-05-21
+
+### Fixed
+
+- README badges: `shields.io` retired the `visual-studio-marketplace/*`
+  endpoints and they now render as "retired badge" placeholders. Replaced
+  the two dynamic badges with a single static "VS Code Marketplace" link
+  badge so the listing renders cleanly.
+
 ## [0.0.5] - 2026-05-21
 
 ### Added
