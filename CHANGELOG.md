@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-05-21
+
+### Added
+
+- Subtle zebra striping on data rows for easier reading
+- Type-aware coloring of data cells: integers and reals in blue with
+  right-aligned tabular numerals, dates in green, BLOBs muted italic
+- Header markers in the Data tab: amber square before primary-key
+  columns, muted asterisk after NOT NULL columns
+- Sorted column is highlighted across the entire column (not just the
+  header) so the active sort is visible while scrolling
+- Filter input gains an amber tint and border when it has an active
+  value, making active filters scannable at a glance
+
+### Notes
+
+- All visuals use existing `vscode-*` CSS variables, so themes (dark,
+  light, high-contrast) keep working without any extra CSS
+- No new dependencies — the project still ships with exactly one runtime
+  dependency (sql.js)
+
 ## [0.0.7] - 2026-05-21
 
 ### Changed

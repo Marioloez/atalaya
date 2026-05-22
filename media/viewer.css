@@ -289,13 +289,68 @@ tr.filter-row td {
   border-color: var(--vscode-focusBorder);
 }
 
+tbody tr:nth-child(even) {
+  background: var(--vscode-tree-tableOddRowsBackground, var(--vscode-list-inactiveSelectionBackground, transparent));
+  background: color-mix(in srgb, var(--vscode-editor-foreground) 4%, transparent);
+}
+
 tbody tr:hover {
   background: var(--vscode-list-hoverBackground);
+}
+
+/* type-based subtle coloring of data cells (foreground only, not background,
+   to keep the table breathable) */
+td.col-int,
+td.col-real {
+  color: var(--vscode-charts-blue, #6cb6ff);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+td.col-date {
+  color: var(--vscode-charts-green, #8bd17c);
+}
+
+td.col-blob {
+  opacity: 0.55;
+  font-style: italic;
+  cursor: default;
 }
 
 td.null {
   opacity: 0.45;
   font-style: italic;
+  text-align: left;
+}
+
+/* header markers — PK and NOT NULL */
+th .pk-marker {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--vscode-charts-orange, #d18616);
+  border-radius: 1px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+th .nullable-marker {
+  color: var(--vscode-descriptionForeground, var(--vscode-editor-foreground));
+  opacity: 0.55;
+  margin-left: 3px;
+  font-weight: 400;
+}
+
+/* sorted column highlight — extends past just the header */
+td.col-sorted,
+th.col-sorted {
+  background: color-mix(in srgb, var(--vscode-focusBorder) 8%, transparent);
+}
+
+/* filter input shows it's active when has content */
+.filter-input.has-value {
+  border-color: var(--vscode-charts-orange, #d18616);
+  background: color-mix(in srgb, var(--vscode-charts-orange, #d18616) 8%, var(--vscode-input-background));
 }
 
 td.blob {

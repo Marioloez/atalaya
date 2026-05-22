@@ -198,15 +198,35 @@
   function appendSortableHead(table, columns) {
     const thead = document.createElement("thead");
     const tr = document.createElement("tr");
+    const colInfo = currentMetadata
+      ? new Map(currentMetadata.columns.map((c) => [c.name, c]))
+      : new Map();
+
     columns.forEach((col, idx) => {
+      const info = colInfo.get(col);
       const th = document.createElement("th");
       th.className = "sortable";
       th.dataset.col = String(idx);
       th.dataset.colname = col;
 
+      if (info && info.pk > 0) {
+        const pk = document.createElement("span");
+        pk.className = "pk-marker";
+        pk.title = "Primary key";
+        th.appendChild(pk);
+      }
+
       const label = document.createElement("span");
       label.textContent = col;
       th.appendChild(label);
+
+      if (info && info.notnull) {
+        const star = document.createElement("span");
+        star.className = "nullable-marker";
+        star.textContent = "*";
+        star.title = "NOT NULL";
+        th.appendChild(star);
+      }
 
       const indicator = document.createElement("span");
       indicator.className = "sort-indicator";
@@ -221,6 +241,21 @@
     updateSortIndicators();
   }
 
+  function columnTypeClass(info) {
+    if (!info || !info.type) return "col-any";
+    const t = info.type.toUpperCase();
+    if (/\b(INT|INTEGER|BIGINT|SMALLINT|TINYINT|MEDIUMINT)\b/.test(t)) {
+      return "col-int";
+    }
+    if (/\b(REAL|FLOAT|DOUBLE|NUMERIC|DECIMAL)\b/.test(t)) {
+      return "col-real";
+    }
+    if (/\bBLOB\b/.test(t)) return "col-blob";
+    if (/\b(DATE|TIME|TIMESTAMP)\b/.test(t)) return "col-date";
+    if (/\b(TEXT|VARCHAR|CHAR|CLOB)\b/.test(t)) return "col-text";
+    return "col-any";
+  }
+
   function appendFilterRow(table, columns) {
     const tr = document.createElement("tr");
     tr.className = "filter-row";
@@ -233,10 +268,15 @@
       input.value = currentFilters[col] ?? "";
       input.spellcheck = false;
       input.autocomplete = "off";
-      input.addEventListener("input", () => onFilterInput(col, input.value));
+      input.classList.toggle("has-value", input.value !== "");
+      input.addEventListener("input", () => {
+        input.classList.toggle("has-value", input.value !== "");
+        onFilterInput(col, input.value);
+      });
       input.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
           input.value = "";
+          input.classList.remove("has-value");
           onFilterInput(col, "");
         } else if (e.key === "Enter") {
           flushFilterDebounce();
@@ -294,6 +334,7 @@
         th.classList.remove("sorted");
       }
     });
+    updateColumnHighlights();
   }
 
   function appendTableBody(table, rows) {
@@ -321,6 +362,9 @@
         const td = buildReadonlyCell(cell, isBlob);
         td.dataset.row = String(rowIdx);
         td.dataset.col = String(colIdx);
+        if (cell !== null && cell !== undefined) {
+          td.classList.add(columnTypeClass(info));
+        }
         if (metadata.editable && !isBlob) {
           td.classList.add("editable");
           td.addEventListener("dblclick", () => startEdit(td, info));
@@ -330,6 +374,18 @@
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
+    updateColumnHighlights();
+  }
+
+  function updateColumnHighlights() {
+    if (!currentColumns.length) return;
+    const sortedIdx = currentColumns.indexOf(currentSortColumn);
+    document.querySelectorAll("#data th, #data td").forEach((cell) => {
+      const colIdx = Number(cell.dataset.col);
+      if (Number.isFinite(colIdx)) {
+        cell.classList.toggle("col-sorted", colIdx === sortedIdx);
+      }
+    });
   }
 
   function buildReadonlyCell(cell, isBlob = false) {
