@@ -1,7 +1,6 @@
 # Atalaya
 
-[![Version](https://img.shields.io/visual-studio-marketplace/v/Marioloez.atalaya.svg)](https://marketplace.visualstudio.com/items?itemName=Marioloez.atalaya)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/Marioloez.atalaya.svg)](https://marketplace.visualstudio.com/items?itemName=Marioloez.atalaya)
+[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue?logo=visual-studio-code&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=marioloez.atalaya)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 An **audit-friendly** SQLite viewer for VSCode. One runtime dependency, no native code, no telemetry.
