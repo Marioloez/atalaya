@@ -1,6 +1,6 @@
 {
-  "name": "sqlitex",
-  "displayName": "Sqlitex",
+  "name": "faro",
+  "displayName": "Faro",
   "description": "Audit-friendly SQLite viewer for VSCode. Browse, query, edit, and export .db / .sqlite / .sqlite3 files. One runtime dependency, no native code.",
   "version": "0.0.5",
   "publisher": "Marioloez",
@@ -26,12 +26,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Marioloez/sqlitex.git"
+    "url": "https://github.com/Marioloez/faro.git"
   },
   "bugs": {
-    "url": "https://github.com/Marioloez/sqlitex/issues"
+    "url": "https://github.com/Marioloez/faro/issues"
   },
-  "homepage": "https://github.com/Marioloez/sqlitex#readme",
+  "homepage": "https://github.com/Marioloez/faro#readme",
   "galleryBanner": {
     "color": "#0E639C",
     "theme": "dark"
@@ -41,8 +41,8 @@
   "contributes": {
     "customEditors": [
       {
-        "viewType": "sqlitex.viewer",
-        "displayName": "Sqlitex",
+        "viewType": "faro.viewer",
+        "displayName": "Faro",
         "selector": [
           { "filenamePattern": "*.db" },
           { "filenamePattern": "*.sqlite" },

@@ -1,7 +1,7 @@
-# Sqlitex
+# Faro
 
-[![Version](https://img.shields.io/visual-studio-marketplace/v/Marioloez.sqlitex.svg)](https://marketplace.visualstudio.com/items?itemName=Marioloez.sqlitex)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/Marioloez.sqlitex.svg)](https://marketplace.visualstudio.com/items?itemName=Marioloez.sqlitex)
+[![Version](https://img.shields.io/visual-studio-marketplace/v/Marioloez.faro.svg)](https://marketplace.visualstudio.com/items?itemName=Marioloez.faro)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/Marioloez.faro.svg)](https://marketplace.visualstudio.com/items?itemName=Marioloez.faro)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 An **audit-friendly** SQLite viewer for VSCode. One runtime dependency, no native code, no telemetry.
@@ -10,7 +10,7 @@ Open `.db`, `.sqlite`, `.sqlite3` files like any other file in your editor. Brow
 
 ## Why this exists
 
-Most VSCode SQLite extensions bundle dozens of npm dependencies, native modules, or both. That's a real supply-chain surface for something that just needs to read a file. Sqlitex ships with **one runtime dependency** — [sql.js](https://github.com/sql-js/sql.js), the official SQLite compiled to WebAssembly — and zero native code. Auditing the source is straightforward.
+Most VSCode SQLite extensions bundle dozens of npm dependencies, native modules, or both. That's a real supply-chain surface for something that just needs to read a file. Faro ships with **one runtime dependency** — [sql.js](https://github.com/sql-js/sql.js), the official SQLite compiled to WebAssembly — and zero native code. Auditing the source is straightforward.
 
 ## Features
 
@@ -30,24 +30,24 @@ Most VSCode SQLite extensions bundle dozens of npm dependencies, native modules,
 
 ### From the Marketplace
 
-Search for **Sqlitex** in the VSCode Extensions view, or install via the command line:
+Search for **Faro** in the VSCode Extensions view, or install via the command line:
 
 ```bash
-code --install-extension Marioloez.sqlitex
+code --install-extension Marioloez.faro
 ```
 
 ### From a `.vsix` file
 
-Download a release from the [Releases](https://github.com/Marioloez/sqlitex/releases) page and install:
+Download a release from the [Releases](https://github.com/Marioloez/faro/releases) page and install:
 
 ```bash
-code --install-extension sqlitex-<version>.vsix
+code --install-extension faro-<version>.vsix
 ```
 
 ## Usage
 
 1. Open any `.db`, `.sqlite`, or `.sqlite3` file in VSCode.
-2. The Sqlitex editor opens automatically.
+2. The Faro editor opens automatically.
 3. Click a table on the left to browse rows.
 4. Switch to the **Query** tab to run arbitrary SQL.
 5. **Double-click** any cell in the Data tab to edit it. `Enter` saves, `Esc` cancels.
@@ -71,8 +71,8 @@ code --install-extension sqlitex-<version>.vsix
 ## Development
 
 ```bash
-git clone https://github.com/Marioloez/sqlitex.git
-cd sqlitex
+git clone https://github.com/Marioloez/faro.git
+cd faro
 npm install
 npm run compile
 # Open the folder in VSCode and press F5 to launch an Extension Development Host
