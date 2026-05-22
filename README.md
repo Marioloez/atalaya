@@ -9,17 +9,19 @@ Built because supply-chain risks in third-party VSCode extensions are real. This
 - Opens `.db`, `.sqlite`, `.sqlite3` files as a custom editor
 - Sidebar lists tables; click any to browse rows with pagination (100 per page)
 - SQL query editor tab — write arbitrary SQL, `Ctrl/Cmd+Enter` to run
-- Mutating statements mark the document as modified; explicit `Cmd+S` writes to disk
-- Native undo/redo for executed queries
+- **Double-click any cell** in the Data tab to edit it in place
+- Mutating statements (SQL or inline edits) mark the document as modified; explicit `Cmd+S` writes to disk
+- Native undo/redo for executed queries and inline edits
 - Revert support reloads from disk
+- Read-only fallback for views, tables without primary key, and BLOB columns
 - Webview locked down with strict CSP and per-load nonce
 
 ## Roadmap
 
-- [ ] In-place cell editing
 - [ ] Schema viewer (columns, types, indexes, foreign keys)
 - [ ] Export table or query result to CSV / JSON
 - [ ] Filter and sort by column
+- [ ] Add / delete rows from the Data tab
 
 ## Development
 

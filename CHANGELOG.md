@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-05-21
+
+### Added
+
+- Inline cell editing in the Data tab — **double-click** any cell to edit
+- `Enter` saves, `Esc` cancels, blur saves
+- Empty input + nullable column = `NULL`; numeric columns reject non-numbers
+- Read-only badge for views and tables without primary key or rowid
+- BLOB cells displayed as `<BLOB N bytes>` and are not editable
+
+### Changed
+
+- `getTableData` now returns table metadata (columns, types, PK info) and
+  per-row key values for safe `UPDATE WHERE` targeting
+- `SqliteEditorProvider` extracted shared dirty-tracking helper used by both
+  the SQL query editor and the inline cell editor
+
 ## [0.0.2] - 2026-05-21
 
 ### Added

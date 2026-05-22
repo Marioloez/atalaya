@@ -13,7 +13,7 @@ class SqlitexDocument implements vscode.CustomDocument {
 }
 
 interface IncomingMessage {
-  type: "listTables" | "getTableData" | "runQuery";
+  type: "listTables" | "getTableData" | "runQuery" | "updateCell";
   payload?: unknown;
 }
 
@@ -25,6 +25,14 @@ interface GetTableDataPayload {
 
 interface RunQueryPayload {
   sql: string;
+}
+
+interface UpdateCellPayload {
+  table: string;
+  column: string;
+  newValue: unknown;
+  keyColumns: string[];
+  keyValues: unknown[];
 }
 
 export class SqliteEditorProvider
@@ -117,28 +125,63 @@ export class SqliteEditorProvider
       }
       case "runQuery": {
         const { sql } = msg.payload as RunQueryPayload;
-        const before = document.service.snapshot();
-        const result = document.service.runQuery(sql);
-        if (result.mutated) {
-          const after = document.service.snapshot();
-          this._onDidChangeCustomDocument.fire({
-            document,
-            label: "Run SQL",
-            undo: () => {
-              document.service.restore(before);
-              this.notifySchemaChanged(document);
-            },
-            redo: () => {
-              document.service.restore(after);
-              this.notifySchemaChanged(document);
-            },
-          });
-          this.notifySchemaChanged(document);
-        }
+        const result = this.executeWithDirtyTracking(document, "Run SQL", () =>
+          document.service.runQuery(sql),
+        );
         panel.webview.postMessage({ type: "queryResult", payload: result });
         return;
       }
+      case "updateCell": {
+        const payload = msg.payload as UpdateCellPayload;
+        const result = this.executeWithDirtyTracking(
+          document,
+          `Edit ${payload.table}.${payload.column}`,
+          () =>
+            document.service.updateCell(
+              payload.table,
+              payload.column,
+              payload.newValue,
+              payload.keyColumns,
+              payload.keyValues,
+            ),
+        );
+        panel.webview.postMessage({
+          type: "updateCellResult",
+          payload: {
+            ...payload,
+            rowsModified: result.rowsModified,
+            mutated: result.mutated,
+          },
+        });
+        return;
+      }
     }
+  }
+
+  private executeWithDirtyTracking<T extends { mutated: boolean }>(
+    document: SqlitexDocument,
+    label: string,
+    run: () => T,
+  ): T {
+    const before = document.service.snapshot();
+    const result = run();
+    if (result.mutated) {
+      const after = document.service.snapshot();
+      this._onDidChangeCustomDocument.fire({
+        document,
+        label,
+        undo: () => {
+          document.service.restore(before);
+          this.notifySchemaChanged(document);
+        },
+        redo: () => {
+          document.service.restore(after);
+          this.notifySchemaChanged(document);
+        },
+      });
+      this.notifySchemaChanged(document);
+    }
+    return result;
   }
 
   private notifySchemaChanged(document: SqlitexDocument): void {
@@ -230,6 +273,7 @@ export class SqliteEditorProvider
       <section id="tab-data" class="tab-panel active">
         <div id="data-header">
           <span id="table-title">Select a table</span>
+          <span id="data-badge"></span>
         </div>
         <div id="table-wrap">
           <table id="data"></table>

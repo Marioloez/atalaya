@@ -7,8 +7,14 @@
   let currentTotal = 0;
   let activeTab = "data";
 
+  let currentColumns = [];
+  let currentMetadata = null;
+  let currentKeyValues = [];
+  let pendingEdit = null;
+
   const tablesEl = document.getElementById("tables");
   const titleEl = document.getElementById("table-title");
+  const badgeEl = document.getElementById("data-badge");
   const pagerEl = document.getElementById("pager");
   const dataEl = document.getElementById("data");
   const sqlInput = document.getElementById("sql-input");
@@ -64,7 +70,21 @@
   function renderData(payload) {
     if (payload.table !== currentTable) return;
     currentTotal = payload.total;
+    currentColumns = payload.columns;
+    currentMetadata = payload.metadata;
+    currentKeyValues = payload.keyValues;
+    pendingEdit = null;
+
     titleEl.textContent = `${payload.table}  ·  ${payload.total} rows`;
+    badgeEl.textContent = "";
+    badgeEl.className = "";
+    if (payload.metadata.isView) {
+      badgeEl.textContent = "view · read-only";
+      badgeEl.className = "badge readonly";
+    } else if (!payload.metadata.editable) {
+      badgeEl.textContent = "no primary key · read-only";
+      badgeEl.className = "badge readonly";
+    }
 
     dataEl.innerHTML = "";
 
@@ -80,7 +100,7 @@
     }
 
     appendTableHead(dataEl, payload.columns);
-    appendTableBody(dataEl, payload.rows);
+    appendEditableBody(dataEl, payload.rows, payload.columns, payload.metadata);
     renderPager();
   }
 
@@ -134,18 +154,202 @@
     rows.forEach((row) => {
       const tr = document.createElement("tr");
       row.forEach((cell) => {
-        const td = document.createElement("td");
-        if (cell === null) {
-          td.textContent = "NULL";
-          td.className = "null";
-        } else {
-          td.textContent = String(cell);
+        tr.appendChild(buildReadonlyCell(cell));
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+  }
+
+  function appendEditableBody(table, rows, columnNames, metadata) {
+    const tbody = document.createElement("tbody");
+    const colInfo = new Map(metadata.columns.map((c) => [c.name, c]));
+
+    rows.forEach((row, rowIdx) => {
+      const tr = document.createElement("tr");
+      row.forEach((cell, colIdx) => {
+        const colName = columnNames[colIdx];
+        const info = colInfo.get(colName);
+        const isBlob = info && /blob/i.test(info.type);
+        const td = buildReadonlyCell(cell, isBlob);
+        td.dataset.row = String(rowIdx);
+        td.dataset.col = String(colIdx);
+        if (metadata.editable && !isBlob) {
+          td.classList.add("editable");
+          td.addEventListener("dblclick", () => startEdit(td, info));
         }
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
+  }
+
+  function buildReadonlyCell(cell, isBlob = false) {
+    const td = document.createElement("td");
+    if (cell === null || cell === undefined) {
+      td.textContent = "NULL";
+      td.className = "null";
+    } else if (isBlob || cell instanceof Uint8Array) {
+      const len = cell instanceof Uint8Array ? cell.length : "?";
+      td.textContent = `<BLOB ${len} bytes>`;
+      td.className = "blob";
+    } else {
+      td.textContent = String(cell);
+    }
+    return td;
+  }
+
+  /* inline editing ------------------------------------------------ */
+
+  function startEdit(td, columnInfo) {
+    if (td.classList.contains("editing")) return;
+    if (pendingEdit) return;
+
+    const rowIdx = Number(td.dataset.row);
+    const colIdx = Number(td.dataset.col);
+    const colName = currentColumns[colIdx];
+    const wasNull = td.classList.contains("null");
+    const originalText = td.textContent;
+    const originalClass = td.className;
+
+    td.classList.add("editing");
+    td.classList.remove("null");
+
+    const input = document.createElement("input");
+    input.type = inputTypeFor(columnInfo);
+    input.value = wasNull ? "" : originalText;
+    input.spellcheck = false;
+    input.autocomplete = "off";
+
+    td.textContent = "";
+    td.appendChild(input);
+    input.focus();
+    input.select();
+
+    let finished = false;
+
+    const cancel = () => {
+      if (finished) return;
+      finished = true;
+      td.classList.remove("editing");
+      td.className = originalClass;
+      td.textContent = originalText;
+    };
+
+    const commit = () => {
+      if (finished) return;
+      finished = true;
+
+      const raw = input.value;
+      let newValue;
+      if (raw === "") {
+        if (columnInfo && columnInfo.notnull) {
+          if (isNumericType(columnInfo)) {
+            td.classList.remove("editing");
+            td.className = originalClass;
+            td.textContent = originalText;
+            flashError(td, "NOT NULL column needs a value");
+            return;
+          }
+          newValue = "";
+        } else {
+          newValue = null;
+        }
+      } else if (isNumericType(columnInfo)) {
+        const parsed = Number(raw);
+        if (Number.isNaN(parsed)) {
+          td.classList.remove("editing");
+          td.className = originalClass;
+          td.textContent = originalText;
+          flashError(td, "Not a number");
+          return;
+        }
+        newValue = parsed;
+      } else {
+        newValue = raw;
+      }
+
+      pendingEdit = {
+        td,
+        rowIdx,
+        colIdx,
+        colName,
+        originalText,
+        originalClass,
+        newValue,
+      };
+
+      td.classList.remove("editing");
+      td.classList.add("saving");
+      td.textContent =
+        newValue === null ? "NULL" : String(newValue);
+      if (newValue === null) td.classList.add("null");
+
+      send("updateCell", {
+        table: currentTable,
+        column: colName,
+        newValue,
+        keyColumns: currentMetadata.keyColumns,
+        keyValues: currentKeyValues[rowIdx],
+      });
+    };
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commit();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        cancel();
+      }
+    });
+    input.addEventListener("blur", commit);
+  }
+
+  function isNumericType(info) {
+    if (!info || !info.type) return false;
+    return /\b(int|real|float|double|numeric|decimal)\b/i.test(info.type);
+  }
+
+  function inputTypeFor(info) {
+    return isNumericType(info) ? "number" : "text";
+  }
+
+  function flashError(td, message) {
+    td.classList.add("flash-error");
+    badgeEl.textContent = message;
+    badgeEl.className = "badge error";
+    setTimeout(() => {
+      td.classList.remove("flash-error");
+      if (badgeEl.textContent === message) {
+        badgeEl.textContent = "";
+        badgeEl.className = "";
+      }
+    }, 1800);
+  }
+
+  function handleUpdateCellResult(payload) {
+    if (!pendingEdit) return;
+    const { td, originalText, originalClass } = pendingEdit;
+    td.classList.remove("saving");
+
+    if (payload.rowsModified === 0) {
+      td.className = originalClass;
+      td.textContent = originalText;
+      flashError(td, "No rows updated — row may have been removed");
+    }
+    pendingEdit = null;
+  }
+
+  function handleEditError(message) {
+    if (!pendingEdit) return;
+    const { td, originalText, originalClass } = pendingEdit;
+    td.classList.remove("saving");
+    td.className = originalClass;
+    td.textContent = originalText;
+    flashError(td, message);
+    pendingEdit = null;
   }
 
   /* tabs ---------------------------------------------------------- */
@@ -247,15 +451,21 @@
       case "queryResult":
         renderQueryResult(msg.payload);
         break;
+      case "updateCellResult":
+        handleUpdateCellResult(msg.payload);
+        break;
       case "schemaChanged":
-        // refresh sidebar and current table view
         send("listTables");
         if (currentTable) requestData();
         break;
       case "error":
-        runBtn.disabled = false;
-        queryStatus.className = "error";
-        queryStatus.textContent = `Error: ${msg.payload.message}`;
+        if (pendingEdit) {
+          handleEditError(msg.payload.message);
+        } else {
+          runBtn.disabled = false;
+          queryStatus.className = "error";
+          queryStatus.textContent = `Error: ${msg.payload.message}`;
+        }
         break;
     }
   });
