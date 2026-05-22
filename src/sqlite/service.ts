@@ -93,8 +93,9 @@ export class SqliteService {
   getTableMetadata(table: string): TableMetadata {
     const quoted = quoteIdent(table);
 
-    const typeRes = this.db.exec(
-      `SELECT type FROM sqlite_master WHERE name = '${table.replace(/'/g, "''")}' LIMIT 1`,
+    const typeRes = this.runPrepared(
+      "SELECT type FROM sqlite_master WHERE name = ? LIMIT 1",
+      [table],
     );
     const isView =
       typeRes.length > 0 && String(typeRes[0].values[0]?.[0]) === "view";
@@ -149,6 +150,7 @@ export class SqliteService {
     offset: number,
     options: TableDataOptions = {},
   ): TableDataResult {
+    this.assertTableExists(table);
     const metadata = this.getTableMetadata(table);
     const quoted = quoteIdent(table);
 
@@ -227,6 +229,7 @@ export class SqliteService {
   }
 
   getAllRows(table: string): QueryResult {
+    this.assertTableExists(table);
     const quoted = quoteIdent(table);
     const res = this.db.exec(`SELECT * FROM ${quoted}`);
     if (res.length === 0) {
@@ -236,6 +239,17 @@ export class SqliteService {
       columns: res[0].columns,
       rows: res[0].values as unknown[][],
     };
+  }
+
+  private assertTableExists(table: string): void {
+    const res = this.runPrepared(
+      `SELECT 1 FROM sqlite_master
+       WHERE type IN ('table', 'view') AND name = ? LIMIT 1`,
+      [table],
+    );
+    if (res.length === 0 || res[0].values.length === 0) {
+      throw new Error(`Table or view ${JSON.stringify(table)} does not exist`);
+    }
   }
 
   runQuery(sql: string): RunQueryResult {
@@ -261,12 +275,30 @@ export class SqliteService {
     keyColumns: string[],
     keyValues: unknown[],
   ): UpdateCellResult {
-    if (keyColumns.length === 0) {
+    const metadata = this.getTableMetadata(table);
+    if (metadata.isView) {
+      throw new Error(`Cannot update: ${table} is a view`);
+    }
+    if (metadata.keyColumns.length === 0) {
       throw new Error("Cannot update: table has no rowid and no primary key");
     }
-    if (keyColumns.length !== keyValues.length) {
+    if (!metadata.columns.some((c) => c.name === column)) {
+      throw new Error(
+        `Column ${JSON.stringify(column)} not found in ${JSON.stringify(table)}`,
+      );
+    }
+    if (
+      keyColumns.length !== metadata.keyColumns.length ||
+      !keyColumns.every((c, i) => c === metadata.keyColumns[i])
+    ) {
+      throw new Error(
+        "keyColumns does not match the table's primary key columns",
+      );
+    }
+    if (keyValues.length !== keyColumns.length) {
       throw new Error("keyColumns and keyValues length mismatch");
     }
+
     const setClause = `${quoteIdent(column)} = ?`;
     const whereClause = keyColumns
       .map((c) => `${quoteIdent(c)} = ?`)
@@ -337,6 +369,14 @@ export class SqliteService {
 }
 
 function quoteIdent(name: string): string {
+  if (typeof name !== "string" || name.length === 0) {
+    throw new Error("Identifier must be a non-empty string");
+  }
+  // Reject control characters (incl. NUL) and embedded newlines —
+  // legal in SQL but red flags that suggest tampering or bugs.
+  if (/[\x00-\x1f]/.test(name)) {
+    throw new Error("Identifier contains control characters");
+  }
   return `"${name.replace(/"/g, '""')}"`;
 }
 

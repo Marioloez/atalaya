@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.11] - 2026-05-22
+
+### Security
+
+This release closes the findings of a multi-agent code review focused on
+SQL/identifier injection, webview XSS/CSP, and defense-in-depth.
+
+- **SQL identifier injection (3 CRITICAL closed)**:
+  - `getTableMetadata` no longer builds the `sqlite_master` lookup with
+    string interpolation — uses a prepared statement with `?` binding.
+  - `updateCell` now validates the `column`, `keyColumns`, and `table`
+    arguments against the live table metadata before constructing the
+    `UPDATE` statement. A malicious or buggy webview message can no
+    longer write to columns the UI never exposed.
+  - `getAllRows` (used by the table-export flow) and `getTableData` now
+    assert the target table exists in `sqlite_master` before any
+    interpolation reaches the SQL.
+- **`quoteIdent` rejects empty strings and control characters (incl. NUL,
+  newlines, tabs)** — surfaces tampering / bugs at the boundary instead
+  of letting odd identifiers reach the WASM SQLite C boundary.
+- **Webview CSP hardened**: nonce now generated with
+  `crypto.randomBytes(16)` instead of `Math.random()`. Added
+  `form-action 'none'` and `base-uri 'none'` explicitly (CSP `default-src`
+  is not a fallback for these directives).
+- **README clarifies the security claim refers to the `.vsix` artifact**,
+  not the development install footprint (which pulls keytar via vsce).
+  Documented `npm ci --ignore-scripts` for paranoid auditors.
+
+### Notes
+
+- All findings classified WARNING/SUGGESTION beyond this scope are
+  tracked in `engram/projects/sqlitex/security-audit-2026-05-21` and
+  will land in a follow-up release (payload shape validation, query
+  result row cap, undo stack memory cap, streaming exports).
+
 ## [0.0.10] - 2026-05-21
 
 ### Added

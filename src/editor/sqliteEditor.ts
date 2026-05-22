@@ -1,3 +1,4 @@
+import * as crypto from "crypto";
 import * as vscode from "vscode";
 import {
   ColumnFilter,
@@ -324,6 +325,10 @@ export class SqliteEditorProvider
       `script-src 'nonce-${nonce}'`,
       `img-src ${webview.cspSource} data:`,
       `font-src ${webview.cspSource}`,
+      // default-src is NOT a fallback for form-action or base-uri,
+      // so we lock them down explicitly.
+      "form-action 'none'",
+      "base-uri 'none'",
     ].join("; ");
 
     return `<!doctype html>
@@ -394,11 +399,8 @@ export class SqliteEditorProvider
 }
 
 function randomNonce(): string {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let out = "";
-  for (let i = 0; i < 32; i++) {
-    out += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return out;
+  // 16 bytes of CSPRNG → 22 base64 chars after stripping padding.
+  // CSP spec requires nonces to be unguessable; Math.random() is not
+  // cryptographically secure, so use crypto.randomBytes instead.
+  return crypto.randomBytes(16).toString("base64").replace(/=+$/, "");
 }

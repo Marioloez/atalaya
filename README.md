@@ -71,11 +71,17 @@ code --install-extension atalaya-<version>.vsix
 
 ## Security posture
 
-- **One runtime dependency**: `sql.js` (WASM build of official SQLite)
-- **No native modules**: no `node-gyp`, no platform-specific compilation
-- **Strict CSP** in the webview: `default-src 'none'` + per-load script nonce
-- **No network calls**, no telemetry, no remote resource loading
+The claim is about **what ships in the `.vsix`**, not about the development install footprint.
+
+- **One runtime dependency** in the `.vsix`: `sql.js` (WASM build of official SQLite)
+- **No native modules** in the `.vsix`: no `node-gyp`, no platform-specific compilation
+- **Strict CSP** in the webview: `default-src 'none'`, per-load `crypto.randomBytes` nonce, `form-action 'none'`, `base-uri 'none'`
+- **All SQL identifiers** (table / column names) are allowlist-validated against `sqlite_master` / `PRAGMA table_info` before they reach a query
+- **All SQL values** go through prepared statements with bound parameters
+- **No network calls**, no telemetry, no remote resource loading — verified via static analysis of both the extension code and the bundled `sql.js`
 - **MIT licensed**, open source — audit every line
+
+> The `devDependencies` install tree (`@vscode/vsce`, TypeScript, etc.) does pull in some native modules at build time (notably `keytar` via `vsce`). None of that reaches the `.vsix`. If you intend to audit from a clean clone, run `npm ci --ignore-scripts` to neutralize any postinstall hooks.
 
 ## Known limitations
 
