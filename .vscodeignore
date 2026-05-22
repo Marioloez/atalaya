@@ -12,6 +12,10 @@ src/**
 .editorconfig
 icon.svg
 docs/**
+posts/**
+scripts/**
+.env
+.env.*
 
 # strip sql.js extras
 node_modules/sql.js/.jsdoc.config.json

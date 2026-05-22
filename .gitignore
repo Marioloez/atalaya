@@ -3,3 +3,12 @@ out/
 *.vsix
 .vscode-test/
 .DS_Store
+
+# Local-only authoring + publishing workflow — not for GitHub
+posts/
+scripts/
+
+# Environment variables (e.g., DEVTO_API_KEY)
+.env
+.env.*
+!.env.example
